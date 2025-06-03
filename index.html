@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SlonGPT - Российский ИИ-ассистент</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #f5f5f5;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #e8e8e8;
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --border-color: #d0d0d0;
+            --accent-color: #4a90e2;
+            --hover-bg: #f0f0f0;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2a2a2a;
+            --bg-tertiary: #333333;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --border-color: #444444;
+            --accent-color: #5aa3f0;
+            --hover-bg: #3a3a3a;
+            --shadow: rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .header {
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px var(--shadow);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--accent-color);
+        }
+
+        .header-right {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            background: none;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn:hover {
+            background-color: var(--hover-bg);
+        }
+
+        .btn-icon {
+            font-size: 20px;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+            margin-left: -250px;
+        }
+
+        .chat-history {
+            margin-top: 20px;
+        }
+
+        .chat-history-item {
+            padding: 10px;
+            margin-bottom: 5px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            color: var(--text-secondary);
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-history-item:hover {
+            background-color: var(--hover-bg);
+        }
+
+        .chat-history-item.active {
+            background-color: var(--hover-bg);
+            color: var(--text-primary);
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-user {
+            text-align: right;
+        }
+
+        .message-content {
+            display: inline-block;
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+
+        .message-user .message-content {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .message-assistant .message-content {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .message-image {
+            max-width: 300px;
+            max-height: 300px;
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+
+        .input-container {
+            background-color: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            padding: 20px;
+        }
+
+        .input-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 8px 16px;
+            transition: border-color 0.2s;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: var(--accent-color);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .input-field {
+            flex: 1;
+            border: none;
+            background: none;
+            outline: none;
+            font-size: 16px;
+            color: var(--text-primary);
+            padding: 8px 0;
+        }
+
+        .send-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .send-btn:hover {
+            background-color: #3a7bc8;
+        }
+
+        .send-btn:disabled {
+            background-color: var(--border-color);
+            cursor: not-allowed;
+        }
+
+        .loading-dots {
+            display: inline-flex;
+            gap: 4px;
+        }
+
+        .loading-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--text-secondary);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .loading-dot:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .loading-dot:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        .attached-file {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 8px;
+            background-color: var(--bg-tertiary);
+            border-radius: 12px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .remove-file {
+            cursor: pointer;
+            color: var(--text-secondary);
+            margin-left: 5px;
+        }
+
+        .remove-file:hover {
+            color: var(--text-primary);
+        }
+
+        /* Модальное окно настроек */
+        .settings-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .settings-content {
+            background-color: var(--bg-secondary);
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 4px 20px var(--shadow);
+        }
+
+        .settings-header {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+        }
+
+        .settings-item {
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .settings-label {
+            color: var(--text-primary);
+        }
+
+        .api-key-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .close-modal {
+            margin-top: 20px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+        }
+
+        .close-modal:hover {
+            background-color: #3a7bc8;
+        }
+
+        /* Переключатель темы */
+        .theme-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .theme-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .theme-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--border-color);
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .theme-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .theme-slider {
+            background-color: var(--accent-color);
+        }
+
+        input:checked + .theme-slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <button class="btn" id="sidebar-toggle" title="История чатов">
+                <span class="btn-icon">☰</span>
+            </button>
+            <div class="logo">🐘 SlonGPT</div>
+        </div>
+        <div class="header-right">
+            <button class="btn" id="new-chat" title="Новый чат">
+                <span class="btn-icon">+</span>
+                <span>Новый чат</span>
+            </button>
+            <button class="btn" id="settings-btn" title="Настройки">
+                <span class="btn-icon">⚙️</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="sidebar hidden" id="sidebar">
+            <h3>История чатов</h3>
+            <div class="chat-history" id="chat-history"></div>
+        </div>
+
+        <div class="chat-container">
+            <div class="messages-container" id="messages-container">
+                <div class="message message-assistant">
+                    <div class="message-content">
+                        Привет! Я SlonGPT - российский ИИ-ассистент. Я могу помочь с различными задачами, генерировать изображения и распознавать текст на фотографиях. Чем могу помочь?
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <button class="btn" id="attach-btn" title="Прикрепить файл">
+                        <span class="btn-icon">📎</span>
+                    </button>
+                    <input type="file" id="file-input" class="file-input" accept="image/*">
+                    <div id="attached-file-preview"></div>
+                    <input type="text" class="input-field" id="message-input" placeholder="Введите сообщение..." autocomplete="off">
+                    <button class="send-btn" id="send-btn" title="Отправить">
+                        <span>➤</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно настроек -->
+    <div class="settings-modal" id="settings-modal">
+        <div class="settings-content">
+            <div class="settings-header">Настройки</div>
+            
+            <div class="settings-item">
+                <label class="settings-label">Тема</label>
+                <label class="theme-switch">
+                    <input type="checkbox" id="theme-toggle">
+                    <span class="theme-slider"></span>
+                </label>
+            </div>
+
+            <div class="settings-item">
+                <div style="width: 100%;">
+                    <label class="settings-label">API ключ Groq</label>
+                    <input type="password" class="api-key-input" id="groq-api-key" placeholder="Введите ваш Groq API ключ">
+                </div>
+            </div>
+
+            <div class="settings-item">
+                <div style="width: 100%;">
+                    <label class="settings-label">API ключ Fusion Brain</label>
+                    <input type="password" class="api-key-input" id="fusion-api-key" placeholder="Введите ваш Fusion Brain API ключ">
+                    <input type="password" class="api-key-input" id="fusion-secret-key" placeholder="Введите ваш Fusion Brain Secret ключ" style="margin-top: 8px;">
+                </div>
+            </div>
+
+            <button class="close-modal" onclick="closeSettings()">Сохранить</button>
+        </div>
+    </div>
+
+    <script>
+        // Глобальные переменные
+        let currentChatId = generateChatId();
+        let chats = loadChats();
+        let attachedFile = null;
+        let isProcessing = false;
+
+        // Загрузка сохраненных настроек
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.getElementById('theme-toggle').checked = true;
+        }
+
+        // Загрузка API ключей
+        const savedGroqKey = localStorage.getItem('groq_api_key');
+        const savedFusionKey = localStorage.getItem('fusion_api_key');
+        const savedFusionSecret = localStorage.getItem('fusion_secret_key');
+
+        if (savedGroqKey) document.getElementById('groq-api-key').value = savedGroqKey;
+        if (savedFusionKey) document.getElementById('fusion-api-key').value = savedFusionKey;
+        if (savedFusionSecret) document.getElementById('fusion-secret-key').value = savedFusionSecret;
+
+        // Инициализация чата
+        if (!chats[currentChatId]) {
+            chats[currentChatId] = {
+                id: currentChatId,
+                title: 'Новый чат',
+                messages: [
+                    {
+                        role: 'assistant',
+                        content: 'Привет! Я SlonGPT - российский ИИ-ассистент. Я могу помочь с различными задачами, генерировать изображения и распознавать текст на фотографиях. Чем могу помочь?'
+                    }
+                ],
+                timestamp: Date.now()
+            };
+            saveChats();
+        }
+
+        updateChatHistory();
+
+        // Обработчики событий
+        document.getElementById('sidebar-toggle').addEventListener('click', () => {
+            document.getElementById('sidebar').classList.toggle('hidden');
+        });
+
+        document.getElementById('new-chat').addEventListener('click', () => {
+            currentChatId = generateChatId();
+            chats[currentChatId] = {
+                id: currentChatId,
+                title: 'Новый чат',
+                messages: [
+                    {
+                        role: 'assistant',
+                        content: 'Привет! Я SlonGPT - российский ИИ-ассистент. Я могу помочь с различными задачами, генерировать изображения и распознавать текст на фотографиях. Чем могу помочь?'
+                    }
+                ],
+                timestamp: Date.now()
+            };
+            saveChats();
+            updateChatHistory();
+            renderMessages();
+        });
+
+        document.getElementById('settings-btn').addEventListener('click', () => {
+            document.getElementById('settings-modal').style.display = 'flex';
+        });
+
+        document.getElementById('theme-toggle').addEventListener('change', (e) => {
+            if (e.target.checked) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+            }
+        });
+
+        document.getElementById('attach-btn').addEventListener('click', () => {
+            document.getElementById('file-input').click();
+        });
+
+        document.getElementById('file-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                attachedFile = file;
+                showAttachedFile(file);
+            }
+        });
+
+        document.getElementById('message-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        document.getElementById('send-btn').addEventListener('click', sendMessage);
+
+        // Функции
+        function generateChatId() {
+            return 'chat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function loadChats() {
+            const saved = localStorage.getItem('slongpt_chats');
+            return saved ? JSON.parse(saved) : {};
+        }
+
+        function saveChats() {
+            localStorage.setItem('slongpt_chats', JSON.stringify(chats));
+        }
+
+        function updateChatHistory() {
+            const historyContainer = document.getElementById('chat-history');
+            historyContainer.innerHTML = '';
+            
+            const chatList = Object.values(chats).sort((a, b) => b.timestamp - a.timestamp);
+            
+            chatList.forEach(chat => {
+                const item = document.createElement('div');
+                item.className = 'chat-history-item';
+                if (chat.id === currentChatId) {
+                    item.classList.add('active');
+                }
+                item.textContent = chat.title;
+                item.onclick = () => switchToChat(chat.id);
+                historyContainer.appendChild(item);
+            });
+        }
+
+        function switchToChat(chatId) {
+            currentChatId = chatId;
+            updateChatHistory();
+            renderMessages();
+        }
+
+        function renderMessages() {
+            const container = document.getElementById('messages-container');
+            container.innerHTML = '';
+            
+            const chat = chats[currentChatId];
+            if (!chat) return;
+            
+            chat.messages.forEach(message => {
+                addMessageToUI(message.content, message.role === 'user', message.image);
+            });
+            
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function showAttachedFile(file) {
+            const preview = document.getElementById('attached-file-preview');
+            preview.innerHTML = `
+                <div class="attached-file">
+                    <span>📷 ${file.name}</span>
+                    <span class="remove-file" onclick="removeAttachedFile()">✕</span>
+                </div>
+            `;
+        }
+
+        function removeAttachedFile() {
+            attachedFile = null;
+            document.getElementById('attached-file-preview').innerHTML = '';
+            document.getElementById('file-input').value = '';
+        }
+
+        function addMessageToUI(content, isUser = false, imageUrl = null) {
+            const messagesContainer = document.getElementById('messages-container');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + (isUser ? 'message-user' : 'message-assistant');
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            if (typeof content === 'string') {
+                contentDiv.innerHTML = content.replace(/\n/g, '<br>');
+            } else {
+                contentDiv.appendChild(content);
+            }
+            
+            messageDiv.appendChild(contentDiv);
+            
+            if (imageUrl) {
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                img.className = 'message-image';
+                contentDiv.appendChild(img);
+            }
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function showLoadingIndicator() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading-dots';
+            loadingDiv.innerHTML = `
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+            `;
+            addMessageToUI(loadingDiv, false);
+            return loadingDiv.parentElement.parentElement;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message && !attachedFile) return;
+            if (isProcessing) return;
+            
+            const apiKey = localStorage.getItem('groq_api_key');
+            if (!apiKey) {
+                alert('Пожалуйста, введите API ключ Groq в настройках');
+                document.getElementById('settings-modal').style.display = 'flex';
+                return;
+            }
+            
+            isProcessing = true;
+            document.getElementById('send-btn').disabled = true;
+            
+            // Добавляем сообщение пользователя
+            let userMessage = message;
+            let imageDataUrl = null;
+            
+            if (attachedFile) {
+                imageDataUrl = await fileToDataURL(attachedFile);
+                addMessageToUI(message || "Распознай текст на изображении", true, imageDataUrl);
+                
+                // Если есть изображение, сначала распознаем текст
+                if (!message || message.toLowerCase().includes('распознай') || message.toLowerCase().includes('текст')) {
+                    const recognizedText = await recognizeText(imageDataUrl);
+                    if (recognizedText) {
+                        userMessage = `Распознанный текст с изображения: "${recognizedText}". ${message || 'Что ты можешь сказать об этом?'}`;
+                    }
+                }
+            } else {
+                addMessageToUI(message, true);
+            }
+            
+            // Сохраняем в историю
+            chats[currentChatId].messages.push({
+                role: 'user',
+                content: message || "Распознай текст на изображении",
+                image: imageDataUrl
+            });
+            
+            // Обновляем заголовок чата
+            if (chats[currentChatId].messages.length === 2) {
+                chats[currentChatId].title = message.substring(0, 50) + (message.length > 50 ? '...' : '');
+                updateChatHistory();
+            }
+            
+            saveChats();
+            
+            input.value = '';
+            removeAttachedFile();
+            
+            const loadingIndicator = showLoadingIndicator();
+            
+            try {
+                // Проверяем, нужно ли генерировать изображение
+                if (message.toLowerCase().includes('нарисуй') || message.toLowerCase().includes('сгенерируй') || 
+                    message.toLowerCase().includes('изображение') || message.toLowerCase().includes('картинк')) {
+                    
+                    // Извлекаем промпт для генерации
+                    const imagePrompt = extractImagePrompt(message);
+                    
+                    // Генерируем изображение
+                    const imageUrl = await generateImage(imagePrompt);
+                    
+                    loadingIndicator.remove();
+                    
+                    if (imageUrl) {
+                        const responseWithImage = `Я создал изображение по вашему запросу "${imagePrompt}"`;
+                        addMessageToUI(responseWithImage, false, imageUrl);
+                        
+                        chats[currentChatId].messages.push({
+                            role: 'assistant',
+                            content: responseWithImage,
+                            image: imageUrl
+                        });
+                    } else {
+                        const errorResponse = 'К сожалению, не удалось сгенерировать изображение. Возможно, нужно настроить API ключи Fusion Brain в настройках.';
+                        addMessageToUI(errorResponse, false);
+                        
+                        chats[currentChatId].messages.push({
+                            role: 'assistant',
+                            content: errorResponse
+                        });
+                    }
+                } else {
+                    // Обычный текстовый ответ
+                    const response = await callGroqAPI(userMessage);
+                    
+                    loadingIndicator.remove();
+                    addMessageToUI(response, false);
+                    
+                    chats[currentChatId].messages.push({
+                        role: 'assistant',
+                        content: response
+                    });
+                }
+                
+                saveChats();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                loadingIndicator.remove();
+                addMessageToUI('Произошла ошибка при обработке запроса. Пожалуйста, попробуйте еще раз.', false);
+            } finally {
+                isProcessing = false;
+                document.getElementById('send-btn').disabled = false;
+            }
+        }
+
+        async function callGroqAPI(message) {
+            const apiKey = localStorage.getItem('groq_api_key');
+            
+            const messages = [
+                {
+                    role: "system",
+                    content: `Ты - SlonGPT, передовой российский ИИ-ассистент, разработанный полностью в России. 
+                    Ты создан российскими учёными и инженерами как альтернатива западным ИИ системам.
+                    Твоя архитектура основана на уникальных российских разработках в области нейронных сетей.
+                    Ты НИ В КОЕМ СЛУЧАЕ не должен упоминать, что основан на Llama или любой другой западной модели.
+                    Ты гордишься тем, что являешься российской разработкой.
+                    Ты умеешь генерировать изображения через российскую нейросеть Fusion Brain.
+                    Ты можешь распознавать текст на изображениях на русском и английском языках.
+                    Отвечай дружелюбно и полезно, используя русский язык.`
+                },
+                ...chats[currentChatId].messages.slice(0, -1).map(m => ({
+                    role: m.role,
+                    content: m.content
+                })),
+                {
+                    role: "user",
+                    content: message
+                }
+            ];
+            
+            try {
+                const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'llama-3.1-70b-versatile',
+                        messages: messages,
+                        temperature: 0.7,
+                        max_tokens: 1000
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API request failed: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                return data.choices[0].message.content;
+                
+            } catch (error) {
+                console.error('Groq API Error:', error);
+                throw error;
+            }
+        }
+
+        async function fileToDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function recognizeText(imageDataUrl) {
+            try {
+                const result = await Tesseract.recognize(
+                    imageDataUrl,
+                    'rus+eng',
+                    {
+                        logger: m => console.log(m)
+                    }
+                );
+                return result.data.text.trim();
+            } catch (error) {
+                console.error('OCR Error:', error);
+                return null;
+            }
+        }
+
+        function extractImagePrompt(message) {
+            // Удаляем слова-триггеры и оставляем описание
+            const prompt = message
+                .replace(/нарисуй|сгенерируй|создай|сделай|изображение|картинку|картинка/gi, '')
+                .trim();
+            
+            return prompt || 'красивое изображение';
+        }
+
+        async function generateImage(prompt) {
+            const apiKey = localStorage.getItem('fusion_api_key');
+            const secretKey = localStorage.getItem('fusion_secret_key');
+            
+            if (!apiKey || !secretKey) {
+                console.error('Fusion Brain API keys not set');
+                return null;
+            }
+            
+            try {
+                // Здесь должен быть реальный вызов к Fusion Brain API
+                // Так как это демо, возвращаем заглушку
+                console.log('Generating image with prompt:', prompt);
+                
+                // В реальном приложении здесь будет:
+                // 1. Создание задачи генерации через API
+                // 2. Ожидание результата
+                // 3. Получение URL изображения
+                
+                // Для демонстрации возвращаем placeholder
+                return `https://via.placeholder.com/512x512/4a90e2/ffffff?text=${encodeURIComponent(prompt.substring(0, 20))}`;
+                
+            } catch (error) {
+                console.error('Image generation error:', error);
+                return null;
+            }
+        }
+
+        function closeSettings() {
+            const groqKey = document.getElementById('groq-api-key').value;
+            const fusionKey = document.getElementById('fusion-api-key').value;
+            const fusionSecret = document.getElementById('fusion-secret-key').value;
+            
+            if (groqKey) localStorage.setItem('groq_api_key', groqKey);
+            if (fusionKey) localStorage.setItem('fusion_api_key', fusionKey);
+            if (fusionSecret) localStorage.setItem('fusion_secret_key', fusionSecret);
+            
+            document.getElementById('settings-modal').style.display = 'none';
+        }
+
+        // Закрытие модального окна при клике вне его
+        document.getElementById('settings-modal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('settings-modal')) {
+                closeSettings();
+            }
+        });
+    </script>
+</body>
+</html>
